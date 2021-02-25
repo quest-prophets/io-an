@@ -24,6 +24,8 @@ static struct proc_dir_entry* entry;
 
 static char char_buf[256];
 
+// function for string processing
+
 int get_sum_of_nums_in_string(char str[])
 {
     int sum = 0;
@@ -58,6 +60,45 @@ int get_sum_of_nums_in_string(char str[])
     return sum;
 }
 
+
+// data structure to store results
+
+typedef struct ArrayList
+{
+    int *data;
+    size_t capacity;	
+    size_t length; 
+} ArrayList;
+ArrayList res_list;
+
+ArrayList create_list(void)
+{
+    ArrayList arr_list = {
+        .data = vmalloc(sizeof(int)),
+	.capacity = 1,
+	.length = 0
+    };
+    return arr_list;
+}
+
+void append_list(size_t element, ArrayList *arr_list)
+{
+    if (arr_list->length == (arr_list->capacity - 1))
+    {
+        arr_list->capacity = arr_list->capacity * 2; // we need to make list bigger
+        int* resized_data = (int*)vmalloc(arr_list->capacity * sizeof(int));
+	memcpy(resized_data, arr_list->data, arr_list->length * sizeof(int));
+	vfree(arr_list->data);
+	arr_list->data = resized_data;
+    }
+    // have some extra space, can append without resize
+    arr_list->data[arr_list->length] = element;
+    arr_list->length = arr_list->length + 1;
+}
+
+
+// ch_dev and proc_file functions 
+
 static int ch_dev_open(struct inode *i, struct file *f)
 {
     printk(KERN_INFO "Driver: open()\n");
@@ -72,31 +113,19 @@ static int ch_dev_close(struct inode *i, struct file *f)
 
 static ssize_t ch_dev_read(struct file *f, char __user *buf, size_t len, loff_t *off)
 {
+    int i = 0;
+    for (i = 0; i < res_list.length; i++)
+    {
+        printk(KERN_DEBUG "%d\n", res_list.data[i]);
+    }
 
-    size_t count = strlen(char_buf);
-    if (len < count)
-    {
-        return 0;
-    }
-    if (copy_to_user(buf, char_buf, count) != 0)
-    {
-        return -EFAULT;
-    }
-    *off = count;
-    return count;
+    return 0;
 }
 
 static ssize_t ch_dev_write(struct file *f, const char __user *buf, size_t len, loff_t *off)
 {
-    if (len < 0 || len > 256)
-    {
-        return 0;
-    }
-    if (copy_from_user(char_buf, buf, len) != 0)
-    {
-        return -EFAULT;
-    }
-    char_buf[len] = '\0';
+    int sum_of_num = get_sum_of_nums_in_string(buf);
+    append_list(sum_of_num, &res_list);
     *off = len;
     return len;
 }
@@ -111,7 +140,13 @@ static ssize_t proc_read(struct file *file, char __user * buf, size_t len, loff_
 {
     int sum_of_num = get_sum_of_nums_in_string(char_buf);
     char sum_of_num_string[256];
-    snprintf(sum_of_num_string, 256, "%d", sum_of_num);
+    int i = 0;
+    int processed = 0;
+    for (i = 0; i < res_list.length; i++)
+    {
+    	processed += snprintf(sum_of_num_string[processed], 256, "%d\n", res_list.data[i]);
+    }
+    sum_of_num_string[processed] = 0;
     size_t count = strlen(sum_of_num_string);
     if ((len < count) || (*off > 0))
     {
@@ -143,6 +178,9 @@ static struct file_operations proc_fops = {
 static int __init lab_init(void)
 {
     char_buf[0] = '\0';
+
+    res_list = create_list();
+
     entry = proc_create("var3", 0444, NULL, &proc_fops);
     printk(KERN_INFO "%s: proc file is created\n", THIS_MODULE->name);
 
