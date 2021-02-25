@@ -42,7 +42,7 @@ int get_sum_of_nums_in_string(char str[])
         else
         {
             curr_num_in_string[curr_num_i] = '\0';
-            if (kstrtol(curr_num_in_string, 10, &num))
+            if (kstrtol(curr_num_in_string, 10, &num) == 0)
             {
                 sum += num;
             }
@@ -50,7 +50,7 @@ int get_sum_of_nums_in_string(char str[])
         }
     }
 
-    if (kstrtol(curr_num_in_string, 10, &num))
+    if (kstrtol(curr_num_in_string, 10, &num) == 0)
         {
             sum += num;
         }
@@ -109,12 +109,15 @@ static ssize_t proc_write(struct file *file, const char __user * ubuf, size_t co
 
 static ssize_t proc_read(struct file *file, char __user * buf, size_t len, loff_t* off)
 {
-    size_t count = strlen(char_buf);
+    int sum_of_num = get_sum_of_nums_in_string(char_buf);
+    char sum_of_num_string[256];
+    snprintf(sum_of_num_string, 256, "%d", sum_of_num);
+    size_t count = strlen(sum_of_num_string);
     if ((len < count) || (*off > 0))
     {
         return 0;
     }
-    if (copy_to_user(buf, char_buf, count) != 0)
+    if (copy_to_user(buf, sum_of_num_string, count) != 0)
     {
         return -EFAULT;
     }
