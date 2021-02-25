@@ -23,21 +23,56 @@ static struct class *cl;
 static struct proc_dir_entry* entry;
  
 static char char_buf[256];
+
+int get_sum_of_nums_in_string(char str[])
+{
+    int sum = 0;
+    char curr_num_in_string[256];
+    int curr_num_i = 0;    
+    int i;
+    long num;
+
+    for (i = 0; i < strlen(str)-1; ++i)
+    {
+        if (str[i] >= '0' && str[i] <= '9')
+        {
+            curr_num_in_string[curr_num_i] = str[i];
+            curr_num_i += 1;
+        }
+        else
+        {
+            curr_num_in_string[curr_num_i] = '\0';
+            if (kstrtol(curr_num_in_string, 10, &num))
+            {
+                sum += num;
+            }
+            curr_num_i = 0;
+        }
+    }
+    
+    if (kstrtol(curr_num_in_string, 10, &num))
+        {
+            sum += num;
+        }
+    
+    return sum;
+}
  
-static int my_open(struct inode *i, struct file *f)
+static int ch_dev_open(struct inode *i, struct file *f)
 {
     printk(KERN_INFO "Driver: open()\n");
     return 0;
 }
  
-static int my_close(struct inode *i, struct file *f)
+static int ch_dev_close(struct inode *i, struct file *f)
 {
     printk(KERN_INFO "Driver: close()\n");
     return 0;
 }
  
-static ssize_t my_read(struct file *f, char __user *buf, size_t len, loff_t *off)
+static ssize_t ch_dev_read(struct file *f, char __user *buf, size_t len, loff_t *off)
 {
+    
     size_t count = strlen(char_buf);
     if (len < count)
     {
@@ -51,7 +86,7 @@ static ssize_t my_read(struct file *f, char __user *buf, size_t len, loff_t *off
     return count;
 }
  
-static ssize_t my_write(struct file *f, const char __user *buf, size_t len, loff_t *off)
+static ssize_t ch_dev_write(struct file *f, const char __user *buf, size_t len, loff_t *off)
 {
     if (len < 0 || len > 256)
     {
@@ -73,7 +108,7 @@ static ssize_t proc_write(struct file *file, const char __user * ubuf, size_t co
 }
  
 static ssize_t proc_read(struct file *file, char __user * buf, size_t len, loff_t* off)
-{
+{       
     size_t count = strlen(char_buf);
     if ((len < count) || (*off > 0))
     {
@@ -90,10 +125,10 @@ static ssize_t proc_read(struct file *file, char __user * buf, size_t len, loff_
 static struct file_operations mychdev_fops =
 {
     .owner = THIS_MODULE,
-    .open = my_open,
-    .release = my_close,
-    .read = my_read,
-    .write = my_write
+    .open = ch_dev_open,
+    .release = ch_dev_close,
+    .read = ch_dev_read,
+    .write = ch_dev_write
 };
  
 static struct file_operations proc_fops = {
