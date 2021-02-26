@@ -22,8 +22,6 @@ static struct class *cl;
 
 static struct proc_dir_entry* entry;
 
-static char char_buf[256];
-
 // function for string processing
 
 int get_sum_of_nums_in_string(char str[])
@@ -34,7 +32,7 @@ int get_sum_of_nums_in_string(char str[])
     int i;
     long num;
 
-    for (i = 0; i < strlen(str)-1; ++i)
+    for (i = 0; i < strlen(str) - 1; ++i)
     {
         if (str[i] >= '0' && str[i] <= '9')
         {
@@ -138,13 +136,12 @@ static ssize_t proc_write(struct file *file, const char __user * ubuf, size_t co
 
 static ssize_t proc_read(struct file *file, char __user * buf, size_t len, loff_t* off)
 {
-    int sum_of_num = get_sum_of_nums_in_string(char_buf);
     char sum_of_num_string[256];
     int i = 0;
     int processed = 0;
     for (i = 0; i < res_list.length; i++)
     {
-    	processed += snprintf(sum_of_num_string[processed], 256, "%d\n", res_list.data[i]);
+    	processed += snprintf(&sum_of_num_string[processed], 256, "%d\n", res_list.data[i]);
     }
     sum_of_num_string[processed] = 0;
     size_t count = strlen(sum_of_num_string);
@@ -177,8 +174,6 @@ static struct file_operations proc_fops = {
 
 static int __init lab_init(void)
 {
-    char_buf[0] = '\0';
-
     res_list = create_list();
 
     entry = proc_create("var3", 0444, NULL, &proc_fops);
