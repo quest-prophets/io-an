@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
+#include <linux/unistd.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kokov A.T., Rogalenko N.A.");
@@ -22,7 +23,7 @@ static struct class *cl;
 
 static struct proc_dir_entry* entry;
 
-// function for string processing
+// -------------- function for string processing --------------
 
 int get_sum_of_nums_in_string(char str[])
 {
@@ -50,22 +51,19 @@ int get_sum_of_nums_in_string(char str[])
         }
     }
 
-    if (kstrtol(curr_num_in_string, 10, &num) == 0)
-        {
-            sum += num;
-        }
+    if (kstrtol(curr_num_in_string, 10, &num) == 0) sum += num;
 
     return sum;
 }
 
 
-// data structure to store results
+// -------------- data structure to store results --------------
 
 typedef struct ArrayList
 {
     int *data;
-    size_t capacity;	
-    size_t length; 
+    size_t capacity;
+    size_t length;
 } ArrayList;
 ArrayList res_list;
 
@@ -73,8 +71,8 @@ ArrayList create_list(void)
 {
     ArrayList arr_list = {
         .data = vmalloc(sizeof(int)),
-	.capacity = 1,
-	.length = 0
+        .capacity = 1,
+        .length = 0
     };
     return arr_list;
 }
@@ -83,11 +81,13 @@ void append_list(size_t element, ArrayList *arr_list)
 {
     if (arr_list->length == (arr_list->capacity - 1))
     {
+        // we can't increase our list capacity further if it exceeds available RAM
+        // if (arr_list->capacity >= sysconf(_SC_AVPHYS_PAGES) * sysconf(_SC_PAGESIZE) || arr_list->capacity * 2 >= SIZE_MAX) return -ENOMEM;
         arr_list->capacity = arr_list->capacity * 2; // we need to make list bigger
         int* resized_data = (int*)vmalloc(arr_list->capacity * sizeof(int));
-	memcpy(resized_data, arr_list->data, arr_list->length * sizeof(int));
-	vfree(arr_list->data);
-	arr_list->data = resized_data;
+        memcpy(resized_data, arr_list->data, arr_list->length * sizeof(int));
+        vfree(arr_list->data);
+        arr_list->data = resized_data;
     }
     // have some extra space, can append without resize
     arr_list->data[arr_list->length] = element;
@@ -95,7 +95,7 @@ void append_list(size_t element, ArrayList *arr_list)
 }
 
 
-// ch_dev and proc_file functions 
+// -------------- ch_dev functions --------------
 
 static int ch_dev_open(struct inode *i, struct file *f)
 {
@@ -112,11 +112,7 @@ static int ch_dev_close(struct inode *i, struct file *f)
 static ssize_t ch_dev_read(struct file *f, char __user *buf, size_t len, loff_t *off)
 {
     int i = 0;
-    for (i = 0; i < res_list.length; i++)
-    {
-        printk(KERN_DEBUG "%d\n", res_list.data[i]);
-    }
-
+    for (i = 0; i < res_list.length; i++) printk(KERN_DEBUG "%d\n", res_list.data[i]);
     return 0;
 }
 
@@ -128,10 +124,12 @@ static ssize_t ch_dev_write(struct file *f, const char __user *buf, size_t len, 
     return len;
 }
 
+// -------------- proc_file functions --------------
+
 static ssize_t proc_write(struct file *file, const char __user * ubuf, size_t count, loff_t* ppos)
 {
     printk(KERN_DEBUG "Attempt to write proc file");
-    return -1;
+    return -EPERM;
 }
 
 static ssize_t proc_read(struct file *file, char __user * buf, size_t len, loff_t* off)
@@ -140,19 +138,14 @@ static ssize_t proc_read(struct file *file, char __user * buf, size_t len, loff_
     int i = 0;
     int processed = 0;
     for (i = 0; i < res_list.length; i++)
-    {
-    	processed += snprintf(&sum_of_num_string[processed], 256, "%d\n", res_list.data[i]);
-    }
+    	processed += snprintf(&sum_of_num_string[processed], 256 - processed, "%d\n", res_list.data[i]);
+
     sum_of_num_string[processed] = 0;
     size_t count = strlen(sum_of_num_string);
-    if ((len < count) || (*off > 0))
-    {
-        return 0;
-    }
-    if (copy_to_user(buf, sum_of_num_string, count) != 0)
-    {
-        return -EFAULT;
-    }
+
+    if ((len < count) || (*off > 0)) return 0;
+    if (copy_to_user(buf, sum_of_num_string, count) != 0) return -EFAULT;
+
     *off = count;
     return count;
 }
@@ -199,7 +192,7 @@ static int __init lab_init(void)
         unregister_chrdev_region(first, 1);
     destroy_proc:
         proc_remove(entry);
-    return -1;
+    return -EIO;
 }
 
 static void __exit lab_exit(void)
