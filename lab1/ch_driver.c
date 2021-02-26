@@ -23,6 +23,9 @@ static struct class *cl;
 
 static struct proc_dir_entry* entry;
 
+void proc_file_handler(char* input);
+const char* SWAP_FILE = "/swap_file ";
+
 // -------------- function for string processing --------------
 
 int get_sum_of_nums_in_string(char str[])
@@ -33,7 +36,7 @@ int get_sum_of_nums_in_string(char str[])
     int i;
     long num;
 
-    for (i = 0; i < strlen(str) - 1; i++)
+    for (i = 0; i < strlen(str) - 1; ++i)
     {
         if (str[i] >= '0' && str[i] <= '9')
         {
@@ -51,6 +54,7 @@ int get_sum_of_nums_in_string(char str[])
         }
     }
 
+    curr_num_in_string[curr_num_i] = 0;
     if (kstrtol(curr_num_in_string, 10, &num) == 0) sum += num;
 
     return sum;
@@ -93,7 +97,6 @@ void append_list(size_t element, ArrayList *arr_list)
     arr_list->data[arr_list->length++] = element;
 }
 
-
 // -------------- ch_dev functions --------------
 
 static int ch_dev_open(struct inode *i, struct file *f)
@@ -120,8 +123,13 @@ static ssize_t ch_dev_write(struct file *f, const char __user *buf, size_t len, 
     char* input = (char*) vmalloc(len * sizeof(char));
     memcpy(input, buf, len * sizeof(char));
     input[len] = 0;
-    int sum_of_num = get_sum_of_nums_in_string(input);
-    append_list(sum_of_num, &res_list);
+    if (*input == '/') {
+        proc_file_handler(input);
+    }
+    else {
+        int sum_of_num = get_sum_of_nums_in_string(input);
+        append_list(sum_of_num, &res_list);
+    }
     *off = len;
     return len;
 }
@@ -166,6 +174,25 @@ static struct file_operations proc_fops = {
     .read = proc_read,
     .write = proc_write,
 };
+
+void proc_file_handler(char* input) {
+    int i;
+    for (i = 0; i < strlen(SWAP_FILE) - 1; i++) {
+        if (*input != SWAP_FILE[i]) return;
+        input++;
+    }
+
+    while (*input == ' ') input++;
+
+    proc_remove(entry);
+
+    char* temp = input;
+    while (*temp != '\n') temp++;
+    *temp = 0;
+    entry = proc_create(input, 0444, NULL, &proc_fops);
+    printk(KERN_INFO "%s: new proc file (%s) is created\n", THIS_MODULE->name, input);
+}
+
 
 static int __init lab_init(void)
 {
