@@ -33,7 +33,7 @@ int get_sum_of_nums_in_string(char str[])
     int i;
     long num;
 
-    for (i = 0; i < strlen(str) - 1; ++i)
+    for (i = 0; i < strlen(str) - 1; i++)
     {
         if (str[i] >= '0' && str[i] <= '9')
         {
@@ -90,8 +90,7 @@ void append_list(size_t element, ArrayList *arr_list)
         arr_list->data = resized_data;
     }
     // have some extra space, can append without resize
-    arr_list->data[arr_list->length] = element;
-    arr_list->length = arr_list->length + 1;
+    arr_list->data[arr_list->length++] = element;
 }
 
 
@@ -118,7 +117,10 @@ static ssize_t ch_dev_read(struct file *f, char __user *buf, size_t len, loff_t 
 
 static ssize_t ch_dev_write(struct file *f, const char __user *buf, size_t len, loff_t *off)
 {
-    int sum_of_num = get_sum_of_nums_in_string(buf);
+    char* input = (char*) vmalloc(len * sizeof(char));
+    memcpy(input, buf, len * sizeof(char));
+    input[len] = 0;
+    int sum_of_num = get_sum_of_nums_in_string(input);
     append_list(sum_of_num, &res_list);
     *off = len;
     return len;
