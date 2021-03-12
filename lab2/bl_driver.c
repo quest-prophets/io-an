@@ -9,11 +9,10 @@
 #include <linux/bio.h>
 #include <linux/string.h>
 
-
-#define MEMSIZE 0xF000 // Size of Ram disk in sectors
 int c = 0; //Variable for Major Number 
 
 #define SECTOR_SIZE 512
+#define MEMSIZE 50 * 1024 * 1024 / SECTOR_SIZE // Size of Ram disk in sectors
 #define MBR_SIZE SECTOR_SIZE
 #define MBR_DISK_SIGNATURE_OFFSET 440
 #define MBR_DISK_SIGNATURE_SIZE 4
@@ -59,74 +58,85 @@ typedef PartEntry PartTable[4];
 static PartTable def_part_table =
 {
 	{
-		boot_type: 0x00,
-		start_sec: 0x2,
-		start_head: 0x0,
-		start_cyl: 0x0,
-		part_type: 0x83,
-		end_head: 0x3,
-		end_sec: 0x20,
-		end_cyl: 0x9F,
-		abs_start_sec: 0x1,
-		sec_in_part: 0x4FFF // 10Mbyte
+	       boot_type : 0,
+               start_head : 0,
+               start_sec : 2,
+               start_cyl_hi : 0,
+               start_cyl : 0,
+               part_type : 131,
+               end_head : 210,
+               end_sec : 16,
+               end_cyl_hi : 0,
+               end_cyl : 3,
+               abs_start_sec : 1,
+               sec_in_part : 61440
 	},
 	{
-		boot_type: 0x00,
-		start_head: 0x4,
-		start_sec: 0x1,
-		start_cyl: 0x0,
-		part_type: 0x05, // extended partition type
-		end_sec: 0x20,
-		end_head: 0xB,
-		end_cyl: 0x9F,
-		abs_start_sec: 0x5000,
-		sec_in_part: 0xA000
+	       boot_type : 0,
+               start_head : 210,
+               start_sec : 17,
+               start_cyl_hi : 0,
+               start_cyl : 3,
+               part_type : 15,
+               end_head : 95,
+               end_sec : 25,
+               end_cyl_hi : 0,
+               end_cyl : 6,
+               abs_start_sec : 61441,
+               sec_in_part : 40959
 	}
 };
-static unsigned int def_log_part_br_abs_start_sector[] = {0x5000, 0xA000};
+static unsigned int def_log_part_br_abs_start_sector[] = {61441, 61441 + 20481};
 static const PartTable def_log_part_table[] =
 {
 	{
 		{
-			boot_type: 0x00,
-			start_head: 0x4,
-			start_sec: 0x2, 
-			start_cyl: 0x0, 
-			part_type: 0x83,
-			end_head: 0x7,
-			end_sec: 0x20,
-			end_cyl: 0x9F,
-			abs_start_sec: 0x1,
-			sec_in_part: 0x4FFF
+			boot_type : 0,
+               		start_head : 210,
+               		start_sec : 18,
+               		start_cyl_hi : 0,
+               		start_cyl : 3,
+               		part_type : 131,
+               		end_head : 25,
+               		end_sec : 22,
+               		end_cyl_hi : 0,
+               		end_cyl : 5,
+               		abs_start_sec : 1,
+               		sec_in_part : 20480
 		},
 		{
-			boot_type: 0x00,
-			start_head: 0x8,
-			start_sec: 0x01,
-			start_cyl: 0x00,
-			part_type: 0x05,
-			end_head: 0xB,
-			end_sec: 0x20,
-			end_cyl: 0x9F,
-			abs_start_sec: 0x5000,
-			sec_in_part: 0x5000
+			boot_type : 0,
+               		start_head : 25,
+               		start_sec : 23,
+               		start_cyl_hi : 0,
+               		start_cyl : 5,
+               		part_type : 5,
+               		end_head : 95,
+               		end_sec : 25,
+               		end_cyl_hi : 0,
+               		end_cyl : 6,
+               		abs_start_sec : 20481,
+               		sec_in_part : 20478
 		}
 	},
 	{
 		{
-			boot_type: 0x00,
-			start_head: 0x8,
-			start_sec: 0x02,
-			start_cyl: 0x00,
-			part_type: 0x83,
-			end_head: 0xB,
-			end_sec: 0x20,
-			end_cyl: 0x9F,
-			abs_start_sec: 0x1,
-			sec_in_part: 0x4FFF
+			boot_type : 0,
+               		start_head : 25,
+               		start_sec : 24,
+               		start_cyl_hi : 0,
+               		start_cyl : 5,
+               		part_type : 131,
+               		end_head : 95,
+               		end_sec : 25,
+               		end_cyl_hi : 0,
+               		end_cyl : 6,
+               		abs_start_sec : 1,
+               		sec_in_part : 20477
 		}
 	}
 };
+
 
 static void copy_mbr(u8 *disk)
 {
@@ -308,5 +318,5 @@ void __exit mydiskdrive_exit(void)
 module_init(mydiskdrive_init);
 module_exit(mydiskdrive_exit);
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Author");
-MODULE_DESCRIPTION("BLOCK DRIVER");
+MODULE_AUTHOR("P3402 Rogalenko, Kokov");
+MODULE_DESCRIPTION("Lab2");
