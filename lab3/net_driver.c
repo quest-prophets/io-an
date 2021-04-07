@@ -7,8 +7,12 @@
 #include <net/arp.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
+#include <linux/proc_fs.h>
 
-static char* link = "enp0s3";
+#define DEST_PORT 69
+
+static struct proc_dir_entry* entry;
+static char* link = "lo";
 module_param(link, charp, 0);
 
 static char* ifname = "vni%d";
@@ -27,24 +31,16 @@ static char check_frame(struct sk_buff *skb, unsigned char data_shift) {
     struct udphdr *udp = NULL;
     int data_len = 0;
 
-	if (IPPROTO_UDP == ip->protocol) {
+     if (IPPROTO_UDP == ip->protocol) {
         udp = (struct udphdr*)((unsigned char*)ip + (ip->ihl * 4));
-        data_len = ntohs(udp->len) - sizeof(struct udphdr);
-        user_data_ptr = (unsigned char *)(skb->data + sizeof(struct iphdr)  + sizeof(struct udphdr)) + data_shift;
-        memcpy(data, user_data_ptr, data_len);
-        data[data_len] = '\0';
-
-        printk("Captured UDP datagram, saddr: %d.%d.%d.%d\n",
-                ntohl(ip->saddr) >> 24, (ntohl(ip->saddr) >> 16) & 0x00FF,
-                (ntohl(ip->saddr) >> 8) & 0x0000FF, (ntohl(ip->saddr)) & 0x000000FF);
-        printk("daddr: %d.%d.%d.%d\n",
-                ntohl(ip->daddr) >> 24, (ntohl(ip->daddr) >> 16) & 0x00FF,
-                (ntohl(ip->daddr) >> 8) & 0x0000FF, (ntohl(ip->daddr)) & 0x000000FF);
-
-    	printk(KERN_INFO "Data length: %d. Data:", data_len);
-        printk("%s", data);
-        return 1;
-
+	if (ntohs(udp->dest) == DEST_PORT) {
+       		data_len = ntohs(udp->len) - sizeof(struct udphdr);
+        	user_data_ptr = (unsigned char *)(skb->data + sizeof(struct iphdr)  + sizeof(struct udphdr)) + data_shift;
+        	memcpy(data, user_data_ptr, data_len);
+        	data[data_len] = '\0';
+        	printk("Source port: %d; Destination port: %d\n", ntohs(udp->source), ntohs(udp->dest));            
+        	return 1;
+	}
     }
     return 0;
 }
@@ -91,6 +87,34 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev) {
     return NETDEV_TX_OK;
 }
 
+//-------------  proc file functions
+
+static ssize_t proc_read(struct file *file, char __user * buf, size_t len, loff_t* off)
+{
+    char buff[256];
+    int processed = 0;
+    size_t count; 
+
+    processed += snprintf(&buff[processed], 256 - processed, "Packets: %lu; Bytes: %lu \n", stats.rx_packets, stats.rx_bytes);
+
+    buff[processed] = 0;
+    count = strlen(buff);
+
+    if ((len < count) || (*off > 0)) return 0;
+    if (copy_to_user(buf, buff, count) != 0) return -EFAULT;
+
+    *off = count;
+    return count;
+}
+
+
+static struct file_operations proc_fops = {
+    .owner = THIS_MODULE,
+    .read = proc_read,
+};
+
+//-------------- end proc file functions
+
 static struct net_device_stats *get_stats(struct net_device *dev) {
     return &stats;
 } 
@@ -114,8 +138,13 @@ static void setup(struct net_device *dev) {
 } 
 
 int __init vni_init(void) {
+
     int err = 0;
     struct priv *priv;
+
+    entry = proc_create("var3", 0444, NULL, &proc_fops);
+    printk(KERN_INFO "%s: proc file is created\n", THIS_MODULE->name);
+
     child = alloc_netdev(sizeof(struct priv), ifname, NET_NAME_UNKNOWN, setup);
     if (child == NULL) {
         printk(KERN_ERR "%s: allocate error", THIS_MODULE->name);
@@ -154,7 +183,12 @@ int __init vni_init(void) {
 }
 
 void __exit vni_exit(void) {
+	
     struct priv *priv = netdev_priv(child);
+
+    proc_remove(entry);
+    printk(KERN_INFO "%s: proc file is deleted\n", THIS_MODULE->name);
+
     if (priv->parent) {
         rtnl_lock();
         netdev_rx_handler_unregister(priv->parent);
@@ -169,6 +203,6 @@ void __exit vni_exit(void) {
 module_init(vni_init);
 module_exit(vni_exit);
 
-MODULE_AUTHOR("Author");
+MODULE_AUTHOR("Rogalenko Kokov P3402");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Description");
+MODULE_DESCRIPTION("IO - Lab3");
